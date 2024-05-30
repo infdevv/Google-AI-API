@@ -1,25 +1,30 @@
-const express = require("express");
-const generateText = require("./generateText");
+const { TextServiceClient } = require("@google-ai/generativelanguage").v1beta2;
+const { GoogleAuth } = require("google-auth-library");
+const dotenv = require("dotenv");
 
-const app = express();
-const port = process.env.PORT || 3000;
+dotenv.config();
 
-app.use(express.json());
+const MODEL_NAME = "models/text-bison-001";
+const API_KEY = process.env.GOOGLE_API_KEY;
 
-app.post("/generate-text", async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    return res.status(400).send({ error: "Prompt is required" });
-  }
+async function generateText(promptText) {
+  const authClient = new GoogleAuth().fromAPIKey(API_KEY);
+  const client = new TextServiceClient({ authClient });
 
   try {
-    const result = await generateText(prompt);
-    res.send({ result });
+    const [response] = await client.generateText({
+      model: MODEL_NAME,
+      prompt: { text: promptText },
+    });
+    if (response && response.candidates && response.candidates.length > 0) {
+      return response.candidates[0].output;
+    } else {
+      return "No candidates found.";
+    }
   } catch (error) {
-    res.status(500).send({ error: "Internal Server Error" });
+    console.error("Error generating text:", error);
+    return "Error generating text.";
   }
-});
+}
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+module.exports = generateText;
